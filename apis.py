@@ -1,6 +1,6 @@
 from flask import Blueprint
 from flask_restx import Api,Resource
-from project.utils import get_auth_token, get_vm, create_port, create_vm, delete_port
+from utils import get_auth_token, get_vm, create_port, create_vm
 blueprint = Blueprint('api', __name__)
 api = Api(blueprint)
 
