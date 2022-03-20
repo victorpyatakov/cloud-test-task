@@ -1,0 +1,10 @@
+[flake8]
+ignore =
+    # E741: Do not use variables named 'I', 'O', or 'l'
+    E741,
+    # E402: Module level import not at top of file
+    E402
+max-line-length = 90
+max-complexity = 15
+count = True
+statistics = True
