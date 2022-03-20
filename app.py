@@ -14,7 +14,8 @@ class VMInstanse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=True)
     cloud_id = db.Column(db.String(100), nullable=True)
-    is_preemtible = db.Column(db.Boolean, default=False, nullable=True)
+    cloud_port_id = db.Column(db.String(100), nullable=True)
+    is_preemptible = db.Column(db.Boolean, default=False, nullable=True)
 
     def __repr__(self):
         return f"<vm_instanse {self.cloud_id}>"
