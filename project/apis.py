@@ -1,6 +1,6 @@
 from flask import Blueprint, request, json
 from flask_restx import Api,Resource, fields
-from utils import get_cloud_vm, create_vm, delete_vm
+from project.utils import get_cloud_vm, create_vm, delete_vm
 
 blueprint = Blueprint('api', __name__)
 api = Api(blueprint,version='1.0', title='API for Selectel Test Task')

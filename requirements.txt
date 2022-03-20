@@ -45,3 +45,4 @@ urllib3==1.26.4
 Werkzeug==1.0.1
 # Линтер
 flake8==3.9.2
+pytest==7.1.1
