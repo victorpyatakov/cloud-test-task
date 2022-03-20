@@ -85,7 +85,7 @@ def create_vm(is_preemptible: bool = False):
                 delete_vm(instanse.cloud_id)
                 vm_params = create_cloud_vm(name="standart")
                 create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-                result = "создана стадарт вм вместо вытесняемой"
+                result = "cоздана стадарт вм вместо вытесняемой"
             else:
                 result = "нельзя создать вытесняемую вм так как уже создана такая"
         else:
@@ -94,11 +94,11 @@ def create_vm(is_preemptible: bool = False):
         if not is_preemptible:
             vm_params = create_cloud_vm(name="standart")
             create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-            result = "создана стадарт вм"
+            result = "cоздана стадарт вм"
         else:
             vm_params = create_cloud_vm(name="preemptible")
             create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-            result = "создана вытесняемая вм"
+            result = "cоздана вытесняемая вм"
     return result
 
 

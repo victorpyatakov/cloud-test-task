@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from apis import blueprint as api
+from project.apis import blueprint as api
 
 
 app = Flask(__name__)
