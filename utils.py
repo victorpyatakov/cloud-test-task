@@ -1,8 +1,7 @@
-from glob import escape
 import requests
 
 
-def get_auth_token():
+def get_cloud_headers_auth() -> dict:
     aut_url = "http://89.248.207.43/identity/v3/auth/tokens"
 
     params = { "auth": 
@@ -36,11 +35,102 @@ def get_auth_token():
         }
     }
 
-    resp = requests.post(url=aut_url, json=params)
-    token = resp.headers["X-Subject-Token"]
-    return {"X-Auth-Token": token}
+    response = requests.post(url=aut_url, json=params)
+    return  {
+        "Content-Type":"application/json",
+        "X-Auth-Token": response.headers["X-Subject-Token"]
+    }
 
-def create_port():
+
+def create_cloud_vm(name):
+    server_url = "http://89.248.207.43/compute/v2.1/servers"
+    cloud_port_id = create_cloud_port()['port']['id']
+    params = {
+        "server": {
+            "name": name,
+            "networks": [
+                {
+                    "port": cloud_port_id
+                }
+            ],
+            "imageRef": "713f7ee3-c787-49ea-b68d-7f3c86a09cf2",
+            "flavorRef": "c1" 
+        }
+    }
+    resp = requests.post(url=server_url, json=params, headers=get_cloud_headers_auth())
+    cloud_id = resp.json()["server"]["id"]
+    return {
+        "name": name,
+        "cloud_port_id": cloud_port_id,
+        "cloud_id": cloud_id
+    }
+
+
+def create_bd_vm(vm_params:dict, is_preemptible:bool):
+    from app import db, VMInstanse
+    vm = VMInstanse(name=vm_params["name"], 
+                    is_preemptible=is_preemptible,
+                    cloud_id=vm_params["cloud_id"],
+                    cloud_port_id=vm_params["cloud_port_id"])
+    db.session.add(vm)
+    db.session.commit()
+
+
+def create_vm(is_preemptible: bool = False):
+    from app import db, VMInstanse
+    instanse = db.session.query(VMInstanse).first()
+    if instanse:
+        if instanse.is_preemptible:
+            if not is_preemptible:
+                delete_vm(instanse.cloud_id)
+                vm_params = create_cloud_vm(name="standart")
+                create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
+                result = "создана стадарт вм вместо вытесняемой"
+            else:
+                result = "нельзя создать вытесняемую вм так как уже создана такая"
+        else:
+            result = "нельзя создать вм так как созданая машина является не вытесянемой"
+    else:
+        if not is_preemptible:
+            vm_params = create_cloud_vm(name="standart")
+            create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
+            result = "создана стадарт вм"
+        else:
+            vm_params = create_cloud_vm(name="preemptible")
+            create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
+            result = "создана вытесняемая вм"
+    return result
+
+
+def delete_vm(server_id):
+    from app import db, VMInstanse
+    instanse = db.session.query(VMInstanse).filter(VMInstanse.cloud_id == server_id).first()
+    delete_cloud_vm(instanse_id=instanse.cloud_id)
+    delete_cloud_port(port_id=instanse.cloud_port_id)
+    db.session.delete(instanse)
+    db.session.commit()
+    return f'vm {server_id} was deleted succesfully'
+
+def delete_cloud_vm(instanse_id):
+    server_url=f"http://89.248.207.43/compute/v2.1/servers/{instanse_id}"
+    response = requests.delete(url=server_url, headers=get_cloud_headers_auth())
+    if response.status_code == 204:
+        return True
+    return False
+
+def delete_cloud_port(port_id):
+    port_url = f"http://89.248.207.43:9696/v2.0/ports/{port_id}"
+    response = requests.delete(url=port_url, headers=get_cloud_headers_auth())
+    if response.status_code == 204:
+        return True
+    return False
+
+def get_cloud_vm():
+    server_url="http://89.248.207.43/compute/v2.1/servers"
+    resp = requests.get(server_url, headers=get_cloud_headers_auth())
+    return resp.json()
+
+def create_cloud_port():
     ports_url = "http://89.248.207.43:9696/v2.0/ports"
     params = {
         "port": {
@@ -52,144 +142,5 @@ def create_port():
             ]
         }
     }
-    headers = {
-        "Content-Type":"application/json",
-        "X-Auth-Token": get_auth_token()["X-Auth-Token"]
-    }
-    resp = requests.post(url=ports_url, json=params, headers=headers)
-    return resp.json()
-
-
-def create_vm(is_preemptible: bool = False):
-    from app import db, VMInstanse
-    server_url = "http://89.248.207.43/compute/v2.1/servers"
-    # проверяем в бд есть ли говно
-    instanse = db.session.query(VMInstanse).first()
-    is_preemptible=False
-    # если есть
-    if instanse:
-        if instanse.is_preemptible:
-            if not is_preemptible:
-                delete_vm(instanse.cloud_id)
-                delete_port(instanse.cloud_port_id)
-                db.session.delete(instanse)
-                # создаем в облаке
-                #
-                name = "standart"
-                cloud_port_id = create_port()['port']['id']
-                params = {
-                    "server": {
-                        "name": name,
-                        "networks": [
-                            {
-                                "port": cloud_port_id
-                            }
-                        ],
-                        "imageRef": "713f7ee3-c787-49ea-b68d-7f3c86a09cf2",
-                        "flavorRef": "c1"
-                        
-                    }
-                }
-                headers = {
-                    "Content-Type":"application/json",
-                    "X-Auth-Token": get_auth_token()["X-Auth-Token"]
-                }
-                resp = requests.post(url=server_url, json=params, headers=headers)
-                cloud_id = resp.json()["server"]["id"]
-                is_preemptible=False
-                # создаем в бд
-                vm = VMInstanse(name=name, is_preemptible=is_preemptible,cloud_id=cloud_id,cloud_port_id=cloud_port_id)
-                db.session.add(vm)
-                db.session.commit()
-                result = "создана стадарт вм"
-            else:
-                result = "нельзя создать вытесняемую вм так как уже создана такая"
-        else:
-            result = "нельзя создать вм так как созданая машина является не вытесянемой"
-    else:
-        if not is_preemptible:
-            name = "standart"
-            cloud_port_id = create_port()['port']['id']
-            params = {
-                "server": {
-                    "name": name,
-                    "networks": [
-                        {
-                            "port": cloud_port_id
-                        }
-                    ],
-                    "imageRef": "713f7ee3-c787-49ea-b68d-7f3c86a09cf2",
-                    "flavorRef": "c1"
-                    
-                }
-            }
-            headers = {
-                "Content-Type":"application/json",
-                "X-Auth-Token": get_auth_token()["X-Auth-Token"]
-            }
-            resp = requests.post(url=server_url, json=params, headers=headers)
-            cloud_id = resp.json()["server"]["id"]
-            is_preemptible=False
-            # создаем в бд
-            vm = VMInstanse(name=name, is_preemptible=is_preemptible,cloud_id=cloud_id,cloud_port_id=cloud_port_id)
-            db.session.add(vm)
-            db.session.commit()
-            result = "создана стадарт вм"
-        else:
-            name = "preemptible"
-            cloud_port_id = create_port()['port']['id']
-            params = {
-                "server": {
-                    "name": name,
-                    "networks": [
-                        {
-                            "port": cloud_port_id
-                        }
-                    ],
-                    "imageRef": "713f7ee3-c787-49ea-b68d-7f3c86a09cf2",
-                    "flavorRef": "c1"
-                    
-                }
-            }
-            headers = {
-                "Content-Type":"application/json",
-                "X-Auth-Token": get_auth_token()["X-Auth-Token"]
-            }
-            resp = requests.post(url=server_url, json=params, headers=headers)
-            cloud_id = resp.json()["server"]["id"]
-            is_preemptible=True
-            # создаем в бд
-            vm = VMInstanse(name=name, is_preemptible=is_preemptible,cloud_id=cloud_id,cloud_port_id=cloud_port_id)
-            db.session.add(vm)
-            db.session.commit()
-            result = "создана вытесняемая вм"
-    
-    return result
-
-def delete_port(port_id):
-    port_url = f"http://89.248.207.43:9696/v2.0/ports/{port_id}"
-    headers = {
-        "Content-Type":"application/json",
-        "X-Auth-Token": get_auth_token()["X-Auth-Token"]
-    }
-    resp = requests.delete(url=port_url, headers=headers)
-    return True
-
-def delete_vm(server_id):
-    server_url=f"http://89.248.207.43/compute/v2.1/servers/{server_id}"
-    headers = {
-        "Content-Type":"application/json",
-        "X-Auth-Token": get_auth_token()["X-Auth-Token"]
-    }
-    resp = requests.delete(url=server_url, headers=headers)
-    return True
-
-def get_vm():
-    server_url="http://89.248.207.43/compute/v2.1/servers"
-    headers = {
-        "Content-Type":"application/json",
-         "X-Auth-Token": get_auth_token()["X-Auth-Token"]
-
-    }
-    resp = requests.get(server_url, headers=headers)
+    resp = requests.post(url=ports_url, json=params, headers=get_cloud_headers_auth())
     return resp.json()
