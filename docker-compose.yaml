@@ -1,9 +1,39 @@
 version: '3.5'
 services:
-  flask_app:
+  database:
+    container_name: postgres-test
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=testdbuser
+      - POSTGRES_PASSWORD=testdbpass
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=testdb
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  flask:
     build:
       context: .
       dockerfile: Dockerfile
+    env_file: app.env
+    environment:
+      - POSTGRES_USER= testdbuser
+      - POSTGRES_PASSWORD= testdbpass
+      - POSTGRES_HOST= database
+      - POSTGRES_PORT= 5432
+      - POSTGRES_DB= testdb
+    depends_on:
+      - database
     ports:
       - 5005:5005
 
+  adminer:
+    image: adminer:latest
+    ports:
+    - 8080:8080
+
+volumes:
+  postgres-data:
