@@ -1,9 +1,0 @@
-# stages:
-#   - linting
-
-# flake8:
-#   stage: linting
-#   script:
-#     - flake8 project
-#   only:
-#     - merge_requests
