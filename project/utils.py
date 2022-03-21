@@ -68,7 +68,7 @@ def create_cloud_vm(name: str) -> dict:
         "cloud_port_id": cloud_port_id,
         "cloud_id": cloud_id
     }
-    
+
 
 def create_local_vm(vm_params: dict, is_preemptible: bool) -> None:
     """Create row in local db table that describe vm from openstack
@@ -93,7 +93,7 @@ def create_local_vm(vm_params: dict, is_preemptible: bool) -> None:
 def create_vm(is_preemptible: bool = False) -> dict:
     """Create standart or preemptible vm in openstack
 
-    :param is_preemptible: bool value, that describe 
+    :param is_preemptible: bool value, that describe
     vm preemptible or standart, defaults to False
     :type is_preemptible: bool, optional
     :return: dict with code and message about succesfully result
@@ -111,48 +111,60 @@ def create_vm(is_preemptible: bool = False) -> dict:
                 vm_params = create_cloud_vm(name="standart")
                 if vm_params.get('code'):
                     return {
-                        'code':'404',
+                        'code': '404',
                         'message:': "Cant create vm in cloud"
                     }
                 create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
                 result = {
-                    'code':'201',
-                    'message:': f"Standart vm {vm_params['cloud_id']} was created succesfully instead of the preemptible vm"
+                    'code': '201',
+                    'message:': (
+                        f"Standart vm {vm_params['cloud_id']} was created"
+                        " succesfully instead of the preemptible vm"
+                    )
                 }
             else:
                 result = {
-                    'code':'403',
-                    'message:': "It is impossible to create a preemptible vm because one has already been created"
+                    'code': '403',
+                    'message:': (
+                        "It is impossible to create a preemptible"
+                        " vm because one has already been created"
+                    )
                 }
         else:
             result = {
-                'code':'403',
-                'message:': "It is impossible to create a vm because the created machine is non-preemptable"
+                'code': '403',
+                'message:': (
+                    "It is impossible to create a vm because"
+                    " the created machine is non-preemptable"
+                )
             }
     else:
         if not is_preemptible:
             vm_params = create_cloud_vm(name="standart")
             if vm_params.get('code'):
                 return {
-                    'code':'404',
+                    'code': '404',
                     'message:': "Cant create vm in cloud"
                 }
             create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
             result = {
-                'code':'201',
+                'code': '201',
                 'message:': f"Standart vm {vm_params['cloud_id']} was created succesfully"
             }
         else:
             vm_params = create_cloud_vm(name="preemptible")
             if vm_params.get('code'):
                 return {
-                    'code':'404',
+                    'code': '404',
                     'message:': "Cant create vm in cloud"
                 }
             create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
             result = {
-                'code':'201',
-                'message:': f"Preemptible vm {vm_params['cloud_id']} was created succesfully"
+                'code': '201',
+                'message:': (
+                    f"Preemptible vm {vm_params['cloud_id']}"
+                    " was created succesfully"
+                )
             }
     return result
 
@@ -172,23 +184,23 @@ def delete_vm(cloud_vm_id: str) -> dict:
     )
     if instanse is None:
         return {
-            'code':'403',
-            'message:':  f"vm {cloud_vm_id} does not exist"
+            'code': '403',
+            'message:': f"vm {cloud_vm_id} does not exist"
         }
     if not delete_cloud_vm(cloud_vm_id=instanse.cloud_id):
         return {
-            'code':'403',
-            'message:':  f"cant delete vm {cloud_vm_id} in cloud"
+            'code': '403',
+            'message:': f"cant delete vm {cloud_vm_id} in cloud"
         }
     if not delete_cloud_port(cloud_port_id=instanse.cloud_port_id):
         return {
-            'code':'403',
-            'message:':  f"cant delete port on vm {cloud_vm_id} in cloud"
+            'code': '403',
+            'message:': f"cant delete port on vm {cloud_vm_id} in cloud"
         }
     db.session.delete(instanse)
     db.session.commit()
     return {
-        'code':'204',
+        'code': '204',
         'message:': f"vm {cloud_vm_id} was deleted succesfully"
     }
 
