@@ -80,7 +80,7 @@ class TestVM:
                 'code': '201',
                 'message:': (
                     f"Standart vm {instanse.cloud_id} was created"
-                    "succesfully instead of the preemptible vm"
+                    " succesfully instead of the preemptible vm"
                 )
             }
             assert instanse is not None

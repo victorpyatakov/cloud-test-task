@@ -14,24 +14,7 @@ def get_cloud_headers_auth() -> dict:
     """
     aut_url = os.environ.get('AUTH_URL')
 
-    params = {
-        "auth": {
-            "identity": {
-                "methods": ["password"],
-                "password": {
-                    "user": {
-                        "name": os.environ.get('OS_USERNAME'),
-                        "domain": {"name": os.environ.get('OS_USER_DOMAIN_NAME')},
-                        "password": os.environ.get('OS_PASSWORD'),
-                    }
-                },
-            },
-            "scope": {"project": {"name": os.environ.get('OS_PROJECT_NAME'),
-                      "domain": {"name": os.environ.get('OS_PROJECT_DOMAIN_NAME')}}},
-        }
-    }
-
-    response = requests.post(url=aut_url, json=params)
+    response = requests.post(url=aut_url, json=get_auth_params())
     return {
         "Content-Type": "application/json",
         "X-Auth-Token": response.headers["X-Subject-Token"],
@@ -58,15 +41,12 @@ def create_cloud_vm(name: str) -> dict:
     }
     resp = requests.post(url=server_url, json=params, headers=get_cloud_headers_auth())
     if resp.status_code == 403:
-        return {
-            'code': '403',
-            'message': 'Cant create vm in cloud'
-        }
-    cloud_id = resp.json()["server"]["id"]
+        return get_err_vm_404_mes()
+
     return {
         "name": name,
         "cloud_port_id": cloud_port_id,
-        "cloud_id": cloud_id
+        "cloud_id": resp.json()["server"]["id"]
     }
 
 
@@ -110,62 +90,26 @@ def create_vm(is_preemptible: bool = False) -> dict:
                     return del_result
                 vm_params = create_cloud_vm(name="standart")
                 if vm_params.get('code'):
-                    return {
-                        'code': '404',
-                        'message:': "Cant create vm in cloud"
-                    }
+                    return get_err_vm_404_mes()
                 create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-                result = {
-                    'code': '201',
-                    'message:': (
-                        f"Standart vm {vm_params['cloud_id']} was created"
-                        " succesfully instead of the preemptible vm"
-                    )
-                }
+                result = get_success_create_st_vm_af_pr_mes(vm_params['cloud_id'])
             else:
-                result = {
-                    'code': '403',
-                    'message:': (
-                        "It is impossible to create a preemptible"
-                        " vm because one has already been created"
-                    )
-                }
+                result = get_err_vm_exist_mes()
         else:
-            result = {
-                'code': '403',
-                'message:': (
-                    "It is impossible to create a vm because"
-                    " the created machine is non-preemptable"
-                )
-            }
+            result = get_err_vm_not_pr_mes()
     else:
         if not is_preemptible:
             vm_params = create_cloud_vm(name="standart")
             if vm_params.get('code'):
-                return {
-                    'code': '404',
-                    'message:': "Cant create vm in cloud"
-                }
+                return get_err_vm_404_mes()
             create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-            result = {
-                'code': '201',
-                'message:': f"Standart vm {vm_params['cloud_id']} was created succesfully"
-            }
+            result = get_success_create_st_vm_mes(vm_params['cloud_id'])
         else:
             vm_params = create_cloud_vm(name="preemptible")
             if vm_params.get('code'):
-                return {
-                    'code': '404',
-                    'message:': "Cant create vm in cloud"
-                }
+                return get_err_vm_404_mes()
             create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-            result = {
-                'code': '201',
-                'message:': (
-                    f"Preemptible vm {vm_params['cloud_id']}"
-                    " was created succesfully"
-                )
-            }
+            result = get_success_create_pr_vm_mes(vm_params['cloud_id'])
     return result
 
 
@@ -183,26 +127,17 @@ def delete_vm(cloud_vm_id: str) -> dict:
         db.session.query(VMInstanse).filter(VMInstanse.cloud_id == cloud_vm_id).first()
     )
     if instanse is None:
-        return {
-            'code': '403',
-            'message:': f"vm {cloud_vm_id} does not exist"
-        }
+        return get_err_del_vm_mes(cloud_vm_id)
+
     if not delete_cloud_vm(cloud_vm_id=instanse.cloud_id):
-        return {
-            'code': '403',
-            'message:': f"cant delete vm {cloud_vm_id} in cloud"
-        }
+        return get_err_del_cloud_vm_mes(cloud_vm_id)
+
     if not delete_cloud_port(cloud_port_id=instanse.cloud_port_id):
-        return {
-            'code': '403',
-            'message:': f"cant delete port on vm {cloud_vm_id} in cloud"
-        }
+        return get_err_del_cloud_port_mes(cloud_vm_id)
+
     db.session.delete(instanse)
     db.session.commit()
-    return {
-        'code': '204',
-        'message:': f"vm {cloud_vm_id} was deleted succesfully"
-    }
+    return get_success_del_vm_mes(cloud_vm_id)
 
 
 def delete_cloud_vm(cloud_vm_id: str) -> bool:
@@ -247,7 +182,7 @@ def get_cloud_vm() -> dict:
 
 
 def create_cloud_port() -> dict:
-    """Creat network port in openstack
+    """Create network port in openstack
 
     :return: json with info about port
     :rtype: dict
@@ -261,3 +196,104 @@ def create_cloud_port() -> dict:
     }
     resp = requests.post(url=ports_url, json=params, headers=get_cloud_headers_auth())
     return resp.json()
+
+
+def get_auth_params() -> dict:
+    return {
+        "auth": {
+            "identity": {
+                "methods": ["password"],
+                "password": {
+                    "user": {
+                        "name": os.environ.get('OS_USERNAME'),
+                        "domain": {"name": os.environ.get('OS_USER_DOMAIN_NAME')},
+                        "password": os.environ.get('OS_PASSWORD'),
+                    }
+                },
+            },
+            "scope": {"project": {"name": os.environ.get('OS_PROJECT_NAME'),
+                      "domain": {"name": os.environ.get('OS_PROJECT_DOMAIN_NAME')}}},
+        }
+    }
+
+
+def get_success_create_st_vm_mes(cloud_id: str) -> dict:
+    return {
+        'code': '201',
+        'message:': f"Standart vm {cloud_id} was created succesfully"
+    }
+
+
+def get_success_create_pr_vm_mes(cloud_id: str) -> dict:
+    return {
+        'code': '201',
+        'message:': (
+            f"Preemptible vm {cloud_id}"
+            " was created succesfully"
+        )
+    }
+
+
+def get_success_create_st_vm_af_pr_mes(cloud_id: str) -> dict:
+    return {
+        'code': '201',
+        'message:': (
+            f"Standart vm {cloud_id} was created"
+            " succesfully instead of the preemptible vm"
+        )
+    }
+
+
+def get_err_vm_404_mes() -> dict:
+    return {
+        'code': '404',
+        'message': 'Cant create vm in cloud'
+    }
+
+
+def get_err_vm_exist_mes() -> dict:
+    return {
+        'code': '403',
+        'message:': (
+            "It is impossible to create a preemptible"
+            " vm because one has already been created"
+        )
+    }
+
+
+def get_err_vm_not_pr_mes() -> dict:
+    return {
+        'code': '403',
+        'message:': (
+            "It is impossible to create a vm because"
+            " the created machine is non-preemptable"
+        )
+    }
+
+
+def get_success_del_vm_mes(cloud_vm_id: str) -> dict:
+    return {
+        'code': '204',
+        'message:': f"vm {cloud_vm_id} was deleted succesfully"
+    }
+
+
+def get_err_del_vm_mes(cloud_vm_id: str) -> dict:
+    return {
+        'code': '403',
+        'message:': f"vm {cloud_vm_id} does not exist"
+    }
+
+
+def get_err_del_cloud_vm_mes(cloud_vm_id: str) -> dict:
+    return {
+        'code': '403',
+        'message:': f"cant delete vm {cloud_vm_id} in cloud"
+    }
+
+
+def get_err_del_cloud_port_mes(cloud_vm_id: str) -> dict:
+    return {
+        'code': '403',
+        'message:': f"cant delete port on vm {cloud_vm_id} in cloud"
+    }
