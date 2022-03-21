@@ -4,3 +4,6 @@ run_test:
 
 build:
 	docker-compose up --build -d
+
+lint:
+	docker exec -it cloud-test-task_flask_1 /bin/sh -c "flake8 "
