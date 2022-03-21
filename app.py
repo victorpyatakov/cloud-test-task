@@ -1,14 +1,15 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from project.apis import blueprint as api
-
+import os
 
 app = Flask(__name__)
 app.register_blueprint(api, url_prefix='/api/v1')
 
-database = 'database'
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://testdbuser:testdbpass@{database}:5432/testdb'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
+
 db = SQLAlchemy(app)
+
 
 class VMInstanse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -20,13 +21,8 @@ class VMInstanse(db.Model):
     def __repr__(self):
         return f"<vm_instanse {self.cloud_id}>"
 
+
 if __name__ == "__main__":
     db.create_all()
     db.session.commit()
     app.run(host="0.0.0.0", port=5005, debug=True)
-
-
-
-
-
-
