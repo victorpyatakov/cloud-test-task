@@ -30,7 +30,7 @@ def get_success_create_pr_vm_mes(cloud_id: str) -> dict:
 
 
 def get_success_create_st_vm_af_pr_mes(cloud_id: str) -> dict:
-    """Get dict with success message if create 
+    """Get dict with success message if create
     standart vm after create preemptible vm
 
     :param cloud_id: vm id in cloud
