@@ -38,32 +38,33 @@ make lint
 ## Работа с API:
 ### API endpoint: /api/v1/vm
 * метод: POST
-* Decription: Ендпоинт нужен, чтобы создавать вм в развернутом openstack.
+* Decription:
+Ендпоинт нужен, чтобы создавать вм в развернутом openstack.
 В качестве параметра запроса выступает флаг is_preemptible,
 который говорит, какую вм создавать:
-** стандартную: is_preemptible=false
-** вытесняемую: is_preemptible=true
+    - стандартную: is_preemptible=false
+    - вытесняемую: is_preemptible=true
 
 * JSON request:
 ```shell script
 {
     "is_preemptible": true or false - флаг, для создания стандратных или вытесняемых вм
 }
-``` 
+```
 * JSON response:
 ```shell script
 {
   "code": "201",
   "message:": "Standart vm 03f0f27e-f325-4c3e-a70d-d64b65ce181c was created succesfully"
 }
-``` 
+```
 ### API endpoint: /api/v1/vm
 * метод: GET
 * Decription: Ендпоинт нужен, запросить информацию о существующших вм в развернутом openstack.
 * JSON request:
 ```shell script
 {}
-``` 
+```
 * JSON response:
 ```shell script
 {
@@ -84,7 +85,7 @@ make lint
     }
   ]
 }
-``` 
+```
 ### API endpoint: /api/v1/vm/{cloud_vm_id}
 * метод: GET
 * Decription: Ендпоинт нужен, чтобы удобно удалять вм в облаке и локальной базе.
@@ -94,14 +95,14 @@ make lint
 {
     "cloud_vm_id": "03f0f27e-f325-4c3e-a70d-d64b65ce181c"
 }
-``` 
+```
 * JSON response:
 ```shell script
 {
   "code": "204",
   "message:": "vm 03f0f27e-f325-4c3e-a70d-d64b65ce181c was deleted succesfully"
 }
-``` 
+```
 
 
 ## Authors and acknowledgment
