@@ -1,15 +1,29 @@
 import requests
 import os
-
+from project.message import (
+    get_success_create_st_vm_mes,
+    get_success_create_pr_vm_mes,
+    get_success_create_st_vm_af_pr_mes,
+    get_err_vm_404_mes,
+    get_err_vm_exist_mes,
+    get_err_vm_not_pr_mes,
+    get_success_del_vm_mes,
+    get_err_del_vm_mes,
+    get_err_del_cloud_vm_mes,
+    get_err_del_cloud_port_mes
+)
 
 COMPUTE_URL = os.environ.get('COMPUTE_URL')
 PORT_URL = os.environ.get('PORT_URL')
 
 
-def get_cloud_headers_auth() -> dict:
-    aut_url = os.environ.get('AUTH_URL')
+def get_auth_params() -> dict:
+    """Get necessary params dict with secret values
 
-    params = {
+    :return: dict with secret values
+    :rtype: dict
+    """
+    return {
         "auth": {
             "identity": {
                 "methods": ["password"],
@@ -26,14 +40,30 @@ def get_cloud_headers_auth() -> dict:
         }
     }
 
-    response = requests.post(url=aut_url, json=params)
+
+def get_cloud_headers_auth() -> dict:
+    """Get request headers for auth in openstack
+
+    :return: headers for auth in openstack
+    :rtype: dict
+    """
+    aut_url = os.environ.get('AUTH_URL')
+
+    response = requests.post(url=aut_url, json=get_auth_params())
     return {
         "Content-Type": "application/json",
         "X-Auth-Token": response.headers["X-Subject-Token"],
     }
 
 
-def create_cloud_vm(name):
+def create_cloud_vm(name: str) -> dict:
+    """Create vm in openstack by name
+
+    :param name: name for vm
+    :type name: str
+    :return: dict with vm parameters
+    :rtype: dict
+    """
     server_url = COMPUTE_URL
     cloud_port_id = create_cloud_port()["port"]["id"]
     params = {
@@ -45,11 +75,24 @@ def create_cloud_vm(name):
         }
     }
     resp = requests.post(url=server_url, json=params, headers=get_cloud_headers_auth())
-    cloud_id = resp.json()["server"]["id"]
-    return {"name": name, "cloud_port_id": cloud_port_id, "cloud_id": cloud_id}
+    if resp.status_code == 403:
+        return get_err_vm_404_mes()
+
+    return {
+        "name": name,
+        "cloud_port_id": cloud_port_id,
+        "cloud_id": resp.json()["server"]["id"]
+    }
 
 
-def create_bd_vm(vm_params: dict, is_preemptible: bool):
+def create_local_vm(vm_params: dict, is_preemptible: bool) -> None:
+    """Create row in local db table that describe vm from openstack
+
+    :param vm_params: dict with dm parameters, like name etc.
+    :type vm_params: dict
+    :param is_preemptible: bool value, that describe vm preemptible or standart
+    :type is_preemptible: bool
+    """
     from app import db, VMInstanse
 
     vm = VMInstanse(
@@ -62,69 +105,123 @@ def create_bd_vm(vm_params: dict, is_preemptible: bool):
     db.session.commit()
 
 
-def create_vm(is_preemptible: bool = False):
+def create_vm(is_preemptible: bool = False) -> dict:
+    """Create standart or preemptible vm in openstack
+
+    :param is_preemptible: bool value, that describe
+    vm preemptible or standart, defaults to False
+    :type is_preemptible: bool, optional
+    :return: dict with code and message about succesfully result
+    :rtype: dcit
+    """
     from app import db, VMInstanse
 
     instanse = db.session.query(VMInstanse).first()
     if instanse:
         if instanse.is_preemptible:
             if not is_preemptible:
-                delete_vm(instanse.cloud_id)
+                del_result = delete_vm(instanse.cloud_id)
+                if del_result.get('code') == '403':
+                    return del_result
                 vm_params = create_cloud_vm(name="standart")
-                create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-                result = "cоздана стадарт вм вместо вытесняемой"
+                if vm_params.get('code'):
+                    return get_err_vm_404_mes()
+                create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
+                result = get_success_create_st_vm_af_pr_mes(vm_params['cloud_id'])
             else:
-                result = "нельзя создать вытесняемую вм так как уже создана такая"
+                result = get_err_vm_exist_mes()
         else:
-            result = "нельзя создать вм так как созданая машина является не вытесянемой"
+            result = get_err_vm_not_pr_mes()
     else:
         if not is_preemptible:
             vm_params = create_cloud_vm(name="standart")
-            create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-            result = "cоздана стадарт вм"
+            if vm_params.get('code'):
+                return get_err_vm_404_mes()
+            create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
+            result = get_success_create_st_vm_mes(vm_params['cloud_id'])
         else:
             vm_params = create_cloud_vm(name="preemptible")
-            create_bd_vm(vm_params=vm_params, is_preemptible=is_preemptible)
-            result = "cоздана вытесняемая вм"
+            if vm_params.get('code'):
+                return get_err_vm_404_mes()
+            create_local_vm(vm_params=vm_params, is_preemptible=is_preemptible)
+            result = get_success_create_pr_vm_mes(vm_params['cloud_id'])
     return result
 
 
-def delete_vm(server_id):
+def delete_vm(cloud_vm_id: str) -> dict:
+    """Delete vm in openstack and local db
+
+    :param cloud_vm_id: id vm from openstack
+    :type cloud_vm_id: str
+    :return: dict with code and message about succesfully result
+    :rtype: dict
+    """
     from app import db, VMInstanse
 
     instanse = (
-        db.session.query(VMInstanse).filter(VMInstanse.cloud_id == server_id).first()
+        db.session.query(VMInstanse).filter(VMInstanse.cloud_id == cloud_vm_id).first()
     )
-    delete_cloud_vm(instanse_id=instanse.cloud_id)
-    delete_cloud_port(port_id=instanse.cloud_port_id)
+    if instanse is None:
+        return get_err_del_vm_mes(cloud_vm_id)
+
+    if not delete_cloud_vm(cloud_vm_id=instanse.cloud_id):
+        return get_err_del_cloud_vm_mes(cloud_vm_id)
+
+    if not delete_cloud_port(cloud_port_id=instanse.cloud_port_id):
+        return get_err_del_cloud_port_mes(cloud_vm_id)
+
     db.session.delete(instanse)
     db.session.commit()
-    return f"vm {server_id} was deleted succesfully"
+    return get_success_del_vm_mes(cloud_vm_id)
 
 
-def delete_cloud_vm(instanse_id):
-    server_url = f"{COMPUTE_URL}/{instanse_id}"
+def delete_cloud_vm(cloud_vm_id: str) -> bool:
+    """Delete vm in openstack
+
+    :param cloud_vm_id: id vm from openstack
+    :type cloud_vm_id: str
+    :return: success result or not
+    :rtype: bool
+    """
+    server_url = f"{COMPUTE_URL}/{cloud_vm_id}"
     response = requests.delete(url=server_url, headers=get_cloud_headers_auth())
     if response.status_code == 204:
         return True
     return False
 
 
-def delete_cloud_port(port_id):
-    port_url = f"{PORT_URL}/{port_id}"
+def delete_cloud_port(cloud_port_id: str) -> bool:
+    """Delete port in openstack
+
+    :param cloud_port_id: id port from openstack
+    :type cloud_port_id: str
+    :return: success result or not
+    :rtype: bool
+    """
+    port_url = f"{PORT_URL}/{cloud_port_id}"
     response = requests.delete(url=port_url, headers=get_cloud_headers_auth())
     if response.status_code == 204:
         return True
     return False
 
 
-def get_cloud_vm():
+def get_cloud_vm() -> dict:
+    """Get info about openstack virtual machines
+
+    :return: json with info about vm
+    :rtype: dict
+    """
     server_url = COMPUTE_URL
     resp = requests.get(server_url, headers=get_cloud_headers_auth())
     return resp.json()
 
 
-def create_cloud_port():
+def create_cloud_port() -> dict:
+    """Create network port in openstack
+
+    :return: json with info about port
+    :rtype: dict
+    """
     ports_url = PORT_URL
     params = {
         "port": {

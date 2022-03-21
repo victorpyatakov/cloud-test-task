@@ -28,6 +28,6 @@ class VM(Resource):
 @api.route("/vm/<cloud_id>")
 @api.doc()
 class InstanseVM(Resource):
-    @api.doc(params={"cloud_id": "An ID in cloud"})
+    @api.doc(params={"cloud_id": "VM ID in cloud"})
     def delete(self, cloud_id):
         return delete_vm(cloud_id)

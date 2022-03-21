@@ -15,101 +15,222 @@ class TestVM:
         instanse = db.session.query(VMInstanse).first()
         assert instanse is None
         result = create_vm(is_preemptible=False)
-        assert result == "cоздана стадарт вм"
-        instanse = db.session.query(VMInstanse).first()
-        assert instanse is not None
-        assert instanse.name == "standart"
+        if result.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '201',
+                'message:': f"Standart vm {instanse.cloud_id} was created succesfully"
+            }
+            assert instanse is not None
+            assert instanse.name == "standart"
+        assert result == expect
 
     def test_create_preemptible(self, clean_vm):
         instanse = db.session.query(VMInstanse).first()
         assert instanse is None
         result = create_vm(is_preemptible=True)
-        assert result == "cоздана вытесняемая вм"
-        instanse = db.session.query(VMInstanse).first()
-        assert instanse is not None
-        assert instanse.name == "preemptible"
+        if result.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '201',
+                'message:': f"Preemptible vm {instanse.cloud_id} was created succesfully"
+            }
+            assert instanse is not None
+            assert instanse.name == "preemptible"
+        assert result == expect
 
     def test_create_st_after_pr(self, clean_vm):
         instanse = db.session.query(VMInstanse).first()
         assert instanse is None
         result_pr = create_vm(is_preemptible=True)
-        assert result_pr == "cоздана вытесняемая вм"
-        instanse = db.session.query(VMInstanse).first()
-        assert instanse is not None
-        assert instanse.name == "preemptible"
+        if result_pr.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloudd"
+            }
+        else:
+            instanse = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '201',
+                'message:': f"Preemptible vm {instanse.cloud_id} was created succesfully"
+            }
+            assert instanse is not None
+            assert instanse.name == "preemptible"
+        assert result_pr == expect
 
         result_st = create_vm(is_preemptible=False)
-        assert result_st == "cоздана стадарт вм вместо вытесняемой"
-        instanse = db.session.query(VMInstanse).first()
-        assert instanse is not None
-        assert instanse.name == "standart"
+        if result_st.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '201',
+                'message:': (
+                    f"Standart vm {instanse.cloud_id} was created"
+                    " succesfully instead of the preemptible vm"
+                )
+            }
+            assert instanse is not None
+            assert instanse.name == "standart"
+        assert result_st == expect
 
     def test_create_st_after_st(self, clean_vm):
         instanse = db.session.query(VMInstanse).first()
         assert instanse is None
-        result_st = create_vm(is_preemptible=False)
-        assert result_st == "cоздана стадарт вм"
-        instanse_1 = db.session.query(VMInstanse).first()
-        assert instanse_1 is not None
-        assert instanse_1.name == "standart"
+        result = create_vm(is_preemptible=False)
+        if result.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse_1 = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '201',
+                'message:': f"Standart vm {instanse_1.cloud_id} was created succesfully"
+            }
+            assert instanse_1 is not None
+            assert instanse_1.name == "standart"
+        assert result == expect
 
         result_st = create_vm(is_preemptible=False)
-        assert (
-            result_st == (
-                "нельзя создать вм так как созданая машина является не вытесянемой"
-            )
-        )
-        instanse_2 = db.session.query(VMInstanse).first()
-        assert instanse_2 is not None
-        assert instanse_2.name == "standart"
-        assert instanse_1 == instanse_2
+        if result_st.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse_2 = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '403',
+                'message:': (
+                    "It is impossible to create a vm because"
+                    " the created machine is non-preemptable"
+                )
+            }
+            assert instanse_2 is not None
+            assert instanse_2.name == "standart"
+            assert instanse_1 == instanse_2
+        assert result_st == expect
 
     def test_create_pr_after_st(self, clean_vm):
         instanse = db.session.query(VMInstanse).first()
         assert instanse is None
-        result_st = create_vm(is_preemptible=False)
-        assert result_st == "cоздана стадарт вм"
-        instanse_1 = db.session.query(VMInstanse).first()
-        assert instanse_1 is not None
-        assert instanse_1.name == "standart"
+        result = create_vm(is_preemptible=False)
+        if result.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse_1 = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '201',
+                'message:': f"Standart vm {instanse_1.cloud_id} was created succesfully"
+            }
+            assert instanse_1 is not None
+            assert instanse_1.name == "standart"
+        assert result == expect
 
         result_st = create_vm(is_preemptible=True)
-        assert (
-            result_st == (
-                "нельзя создать вм так как созданая машина является не вытесянемой"
-            )
-        )
-        instanse_2 = db.session.query(VMInstanse).first()
-        assert instanse_2 is not None
-        assert instanse_2.name == "standart"
-        assert instanse_1 == instanse_2
+        if result_st.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse_2 = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '403',
+                'message:': (
+                    "It is impossible to create a vm because"
+                    " the created machine is non-preemptable"
+                )
+            }
+            assert instanse_2 is not None
+            assert instanse_2.name == "standart"
+            assert instanse_1 == instanse_2
+        assert result_st == expect
 
     def test_create_pr_after_pr(self, clean_vm):
         instanse = db.session.query(VMInstanse).first()
         assert instanse is None
-        result_pr = create_vm(is_preemptible=True)
-        assert result_pr == "cоздана вытесняемая вм"
-        instanse_1 = db.session.query(VMInstanse).first()
-        assert instanse_1 is not None
-        assert instanse_1.name == "preemptible"
+        result = create_vm(is_preemptible=True)
+        if result.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse_1 = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '201',
+                'message:': (
+                    f"Preemptible vm {instanse_1.cloud_id} was created succesfully"
+                )
+            }
+            assert instanse_1 is not None
+            assert instanse_1.name == "preemptible"
+        assert result == expect
 
-        result_pr = create_vm(is_preemptible=True)
-        assert result_pr == "нельзя создать вытесняемую вм так как уже создана такая"
-        instanse_2 = db.session.query(VMInstanse).first()
-        assert instanse_2 is not None
-        assert instanse_2.name == "preemptible"
-        assert instanse_1 == instanse_2
+        result_st = create_vm(is_preemptible=True)
+        if result_st.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse_2 = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '403',
+                'message:': (
+                    "It is impossible to create a preemptible vm"
+                    " because one has already been created"
+                )
+            }
+            assert instanse_2 is not None
+            assert instanse_2.name == "preemptible"
+            assert instanse_1 == instanse_2
+        assert result_st == expect
 
     def test_delete_vm(self, clean_vm):
         instanse = db.session.query(VMInstanse).first()
         assert instanse is None
-        result_st = create_vm(is_preemptible=False)
-        assert result_st == "cоздана стадарт вм"
-        instanse = db.session.query(VMInstanse).first()
-        assert instanse is not None
-        assert instanse.name == "standart"
+        result = create_vm(is_preemptible=False)
+        if result.get('code') == 404:
+            expect = {
+                'code': '404',
+                'message:': "Cant create vm in cloud"
+            }
+        else:
+            instanse = db.session.query(VMInstanse).first()
+            expect = {
+                'code': '201',
+                'message:': f"Standart vm {instanse.cloud_id} was created succesfully"
+            }
+            assert instanse is not None
+            assert instanse.name == "standart"
+        assert result == expect
+
         cloud_vm_id = instanse.cloud_id
         result_del = delete_vm(cloud_vm_id)
-        assert result_del == f"vm {cloud_vm_id} was deleted succesfully"
+        expect = {
+            'code': '204',
+            'message:': f"vm {cloud_vm_id} was deleted succesfully"
+        }
+        assert result_del == expect
         instanse = db.session.query(VMInstanse).first()
         assert instanse is None
