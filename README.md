@@ -38,6 +38,12 @@ make lint
 ## Работа с API:
 ### API endpoint: /api/v1/vm
 * метод: POST
+* Decription: Ендпоинт нужен, чтобы создавать вм в развернутом openstack.
+В качестве параметра запроса выступает флаг is_preemptible,
+который говорит, какую вм создавать:
+** стандартную: is_preemptible=false
+** вытесняемую: is_preemptible=true
+
 * JSON request:
 ```shell script
 {
@@ -47,9 +53,56 @@ make lint
 * JSON response:
 ```shell script
 {
-    сообщение об созданной вм или о неудаче
+  "code": "201",
+  "message:": "Standart vm 03f0f27e-f325-4c3e-a70d-d64b65ce181c was created succesfully"
 }
 ``` 
+### API endpoint: /api/v1/vm
+* метод: GET
+* Decription: Ендпоинт нужен, запросить информацию о существующших вм в развернутом openstack.
+* JSON request:
+```shell script
+{}
+``` 
+* JSON response:
+```shell script
+{
+  "servers": [
+    {
+      "id": "03f0f27e-f325-4c3e-a70d-d64b65ce181c",
+      "name": "standart",
+      "links": [
+        {
+          "rel": "self",
+          "href": "http://89.248.207.43/compute/v2.1/servers/03f0f27e-f325-4c3e-a70d-d64b65ce181c"
+        },
+        {
+          "rel": "bookmark",
+          "href": "http://89.248.207.43/compute/servers/03f0f27e-f325-4c3e-a70d-d64b65ce181c"
+        }
+      ]
+    }
+  ]
+}
+``` 
+### API endpoint: /api/v1/vm/{cloud_vm_id}
+* метод: GET
+* Decription: Ендпоинт нужен, чтобы удобно удалять вм в облаке и локальной базе.
+В качестве параметра url выступает cloud_vm_id, которое соотвуствует id вм из openstack.
+* JSON request:
+```shell script
+{
+    "cloud_vm_id": "03f0f27e-f325-4c3e-a70d-d64b65ce181c"
+}
+``` 
+* JSON response:
+```shell script
+{
+  "code": "204",
+  "message:": "vm 03f0f27e-f325-4c3e-a70d-d64b65ce181c was deleted succesfully"
+}
+``` 
+
 
 ## Authors and acknowledgment
 Victor Pyatakov
